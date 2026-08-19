@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explore Nepal - Travel Suggestions & Stays</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <!-- Leaflet.js CSS for Interactive Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        :root { --accent-teal: #148080; }
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .btn-teal { background-color: var(--accent-teal); color: white; border: none; }
+        .btn-teal:hover { background-color: #0f6363; color: white; }
+        .dest-card { transition: transform 0.2s ease, box-shadow 0.2s ease; border-radius: 12px; overflow: hidden; }
+        .dest-card:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important; }
+        .nav-tabs .nav-link.active { color: var(--accent-teal); font-weight: bold; border-bottom: 3px solid var(--accent-teal); }
+        .nav-tabs .nav-link { color: #6c757d; }
+        #nepal-map { height: 380px; width: 100%; border-radius: 12px; z-index: 1; }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark py-3">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/"><i class="bi bi-compass text-warning me-2"></i>Trip Log Nepal</a>
+            <div class="d-flex gap-2">
+                <a href="/trips" class="btn btn-outline-light btn-sm"><i class="bi bi-journal-text me-1"></i> My Trips</a>
+                <a href="/auth/login" class="btn btn-teal btn-sm"><i class="bi bi-person-circle me-1"></i> Account</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        
+        <!-- Header & Action Row -->
+        <div class="d-md-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold mb-1"><i class="bi bi-map text-teal"></i> Nepal Destination Explorer</h2>
+                <p class="text-muted small">Find routes, vehicle options, and hotels across Nepal's top travel spots.</p>
+            </div>
+            <div class="d-flex gap-2 mt-3 mt-md-0">
+                <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#addDestModal">
+                    <i class="bi bi-plus-circle me-1"></i> Add Destination
+                </button>
+                <a href="/trips" class="btn btn-teal">
+                    <i class="bi bi-plus-lg me-1"></i> Start New Journey
+                </a>
+            </div>
+        </div>
+
+        <!-- Live Search Bar & Map Toggle -->
+        <div class="card border-0 shadow-sm p-2 mb-4 bg-white">
+            <div class="row g-2 align-items-center">
+                <div class="col-md">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-0"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" id="searchInput" class="form-control border-0 shadow-none" placeholder="Search destinations (e.g. Pokhara, Mustang, Safari, Hotel)...">
+                    </div>
+                </div>
+                <div class="col-md-auto text-end me-2">
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#mapCollapse" aria-expanded="false" aria-controls="mapCollapse" id="mapToggleBtn">
+                        <i class="bi bi-geo-alt-fill text-danger me-1"></i> Open Interactive Map
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Collapsible Leaflet Map -->
+        <div class="collapse mb-4" id="mapCollapse">
+            <div class="card border-0 shadow-sm p-3 bg-white">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="fw-bold text-dark mb-0"><i class="bi bi-map-fill text-teal me-2"></i>Nepal Destination Map</h6>
+                    <small class="text-muted">Click markers for details</small>
+                </div>
+                <div id="nepal-map" class="shadow-sm"></div>
+            </div>
+        </div>
+
+        <!-- Destination Cards Grid -->
+        <div class="row g-4" id="destinationGrid">
+            <% destinations.forEach((dest, index) => { %>
+                <div class="col-md-6 col-lg-6 dest-item" data-title="<%= dest.name.toLowerCase() %> <%= dest.description.toLowerCase() %>">
+                    <div class="card border-0 shadow-sm dest-card h-100 bg-white">
+                        
+                        <!-- Image with fallback and referrerpolicy -->
+                        <img src="<%= dest.image %>" 
+                             class="card-img-top" 
+                             style="height: 230px; object-fit: cover;" 
+                             alt="<%= dest.name %>"
+                             referrerpolicy="no-referrer"
+                             onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1544735716-392fe2489ffa?w=800';">
+
+                        <div class="card-body p-4">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <h4 class="fw-bold mb-0"><%= dest.name %></h4>
+                                    <small class="text-teal font-monospace fw-semibold"><%= dest.tagline %></small>
+                                </div>
+                            </div>
+                            
+                            <p class="text-secondary small mb-3"><%= dest.description %></p>
+
+                            <!-- Tabs for Vehicles vs Hotels -->
+                            <ul class="nav nav-tabs nav-fill mb-3" id="tab-<%= index %>" role="tablist">
+                                <li class="nav-item">
+                                    <button class="nav-link active py-1 small" id="veh-tab-<%= index %>" data-bs-toggle="tab" data-bs-target="#veh-<%= index %>" type="button"><i class="bi bi-bus-front me-1"></i> Vehicles</button>
+                                </li>
+                                <li class="nav-item">
+                                    <button class="nav-link py-1 small" id="hotel-tab-<%= index %>" data-bs-toggle="tab" data-bs-target="#hotel-<%= index %>" type="button"><i class="bi bi-building me-1"></i> Hotels & Stays</button>
+                                </li>
+                            </ul>
+
+                            <div class="tab-content" id="tabContent-<%= index %>">
+                                
+                                <!-- Vehicle Tab Content -->
+                                <div class="tab-pane fade show active" id="veh-<%= index %>">
+                                    <ul class="list-group list-group-flush small">
+                                        <% dest.vehicles.forEach(v => { %>
+                                            <li class="list-group-item d-flex justify-content-between align-items-center px-0 bg-transparent">
+                                                <div>
+                                                    <span class="fw-bold"><%= v.type %></span>
+                                                    <div class="text-muted text-truncate" style="max-width: 200px;"><%= v.route %></div>
+                                                </div>
+                                                <span class="badge bg-light text-dark border"><%= v.cost %></span>
+                                            </li>
+                                        <% }); %>
+                                    </ul>
+                                </div>
+
+                                <!-- Hotel Tab Content -->
+                                <div class="tab-pane fade" id="hotel-<%= index %>">
+                                    <ul class="list-group list-group-flush small">
+                                        <% if (dest.hotels && dest.hotels.length > 0) { %>
+                                            <% dest.hotels.forEach(h => { %>
+                                                <li class="list-group-item d-flex justify-content-between align-items-center px-0 bg-transparent">
+                                                    <div>
+                                                        <span class="fw-bold text-dark"><i class="bi bi-house-check text-success me-1"></i><%= h.name %></span>
+                                                        <div class="text-muted small"><%= h.category %></div>
+                                                    </div>
+                                                    <span class="badge bg-warning text-dark"><%= h.price %></span>
+                                                </li>
+                                            <% }); %>
+                                        <% } else { %>
+                                            <li class="list-group-item text-muted small">No hotels listed yet.</li>
+                                        <% } %>
+                                    </ul>
+                                </div>
+
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            <% }); %>
+        </div>
+
+    </div>
+
+    <!-- Add Destination Modal -->
+    <div class="modal fade" id="addDestModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-geo-alt me-2"></i>Add Travel Destination</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="/explore/add" method="POST">
+                    <div class="modal-body row g-3">
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">DESTINATION NAME</label>
+                            <input type="text" name="name" class="form-control" placeholder="e.g. Nagarkot" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">TAGLINE</label>
+                            <input type="text" name="tagline" class="form-control" placeholder="e.g. Himalayan Sunrise Views">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">IMAGE URL</label>
+                            <input type="text" name="image" class="form-control" placeholder="/images/lumbini.jpg or https://...">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">DESCRIPTION</label>
+                            <textarea name="description" class="form-control" rows="2" placeholder="Brief details about attractions..."></textarea>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">MAIN VEHICLE TYPE</label>
+                            <input type="text" name="vehicleType" class="form-control" placeholder="e.g. Local Bus">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">EST. VEHICLE COST</label>
+                            <input type="text" name="vehicleCost" class="form-control" placeholder="e.g. NPR 300">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">RECOMMENDED HOTEL</label>
+                            <input type="text" name="hotelName" class="form-control" placeholder="e.g. Hotel Country Villa">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small fw-bold">EST. HOTEL PRICE</label>
+                            <input type="text" name="hotelPrice" class="form-control" placeholder="e.g. NPR 6,000 / night">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-teal w-100">Save Destination</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Leaflet Map Setup -->
+    <script>
+        let map;
+        const mapCollapse = document.getElementById('mapCollapse');
+
+        // Trigger map initialization & invalidateSize on collapse expand
+        mapCollapse.addEventListener('shown.bs.collapse', function () {
+            if (!map) {
+                map = L.map('nepal-map').setView([28.3949, 84.1240], 7);
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(map);
+
+                const spots = [
+                    { name: "Pokhara", lat: 28.2096, lng: 83.9856, desc: "City of Lakes & Paragliding" },
+                    { name: "Chitwan National Park", lat: 27.5291, lng: 84.4533, desc: "Jungle Safari & Wildlife" },
+                    { name: "Upper Mustang", lat: 28.9985, lng: 83.8473, desc: "The Last Forbidden Kingdom" },
+                    { name: "Rara Lake", lat: 29.5303, lng: 82.0911, desc: "Queen of Lakes in Mugu" }
+                ];
+
+                spots.forEach(spot => {
+                    L.marker([spot.lat, spot.lng]).addTo(map)
+                        .bindPopup(`<b>${spot.name}</b><br><small>${spot.desc}</small>`);
+                });
+            } else {
+                // Adjust tiles when rendering inside a hidden container
+                map.invalidateSize();
+            }
+            document.getElementById('mapToggleBtn').innerHTML = '<i class="bi bi-eye-slash me-1"></i> Hide Map';
+        });
+
+        mapCollapse.addEventListener('hidden.bs.collapse', function () {
+            document.getElementById('mapToggleBtn').innerHTML = '<i class="bi bi-geo-alt-fill text-danger me-1"></i> Open Interactive Map';
+        });
+    </script>
+
+    <!-- Live Search JS -->
+    <script>
+        document.getElementById('searchInput').addEventListener('keyup', function () {
+            const filter = this.value.toLowerCase();
+            const cards = document.querySelectorAll('.dest-item');
+            
+            cards.forEach(card => {
+                const titleData = card.getAttribute('data-title');
+                if (titleData.includes(filter)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
