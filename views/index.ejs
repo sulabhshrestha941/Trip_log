@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trip Log Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <!-- Leaflet.js CSS for Interactive Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        :root {
+            --bg-main: #f8f9fa;
+            --accent-teal: #148080;
+            --accent-blue: #235584;
+            --accent-orange: #e08e2d;
+            --card-radius: 12px;
+        }
+        body { background-color: var(--bg-main); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .navbar-brand { font-weight: 700; color: var(--accent-teal) !important; }
+        .card-custom { border: none; border-radius: var(--card-radius); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .btn-teal { background-color: var(--accent-teal); color: white; border: none; border-radius: 8px; font-weight: 600; }
+        .btn-teal:hover { background-color: #0f6363; color: white; }
+        .trip-card { transition: transform 0.2s; border-left: 5px solid var(--accent-teal); }
+        .trip-card:hover { transform: translateY(-3px); }
+        .badge-expense { background-color: rgba(224, 142, 45, 0.15); color: var(--accent-orange); font-weight: 600; }
+        #nepal-map { height: 350px; width: 100%; border-radius: var(--card-radius); z-index: 1; }
+    </style>
+</head>
+<body>
+
+    <!-- Top Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom py-3">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+                <i class="bi bi-compass-fill"></i> Trip Log System
+            </a>
+            <span class="badge bg-secondary">CSE220 Project</span>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        
+        <!-- Header Banner -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h2 class="fw-bold mb-1">Trip Records & Planning</h2>
+                <p class="text-muted small">Centralized itinerary tracking, destinations, and shared expense management.</p>
+            </div>
+            <button class="btn btn-teal px-4 py-2" data-bs-toggle="collapse" data-bs-target="#createTripForm">
+                <i class="bi bi-plus-lg me-1"></i> New Trip
+            </button>
+        </div>
+
+        <!-- Interactive Leaflet Map Card -->
+        <div class="card card-custom p-3 bg-white mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h6 class="fw-bold text-dark mb-0"><i class="bi bi-geo-alt-fill text-danger me-2"></i>Interactive Destination Map</h6>
+                <small class="text-muted">Explore key spots across Nepal</small>
+            </div>
+            <div id="nepal-map" class="shadow-sm"></div>
+        </div>
+
+        <!-- Collapsible Create Trip Form -->
+        <div class="collapse mb-4" id="createTripForm">
+            <div class="card card-custom p-4 bg-white">
+                <h5 class="fw-bold mb-3"><i class="bi bi-geo-alt me-2 text-teal"></i>Add New Journey</h5>
+                <form action="/add-trip" method="POST" class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small fw-bold">TRIP TITLE</label>
+                        <input type="text" name="title" class="form-control" placeholder="e.g. Autumn Trek" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small fw-bold">DESTINATION</label>
+                        <input type="text" name="destination" class="form-control" placeholder="e.g. Pokhara, Nepal" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small fw-bold">START DATE</label>
+                        <input type="date" name="startDate" class="form-control" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-muted small fw-bold">END DATE</label>
+                        <input type="date" name="endDate" class="form-control" required>
+                    </div>
+                    <div class="col-12 text-end">
+                        <button type="submit" class="btn btn-teal px-4">Save Record</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Active Trips Dashboard Grid -->
+        <h5 class="fw-bold mb-3 text-secondary">Logged Trips</h5>
+        <div class="row g-3">
+            <% if (trips.length === 0) { %>
+                <div class="col-12">
+                    <div class="card card-custom p-5 text-center text-muted">
+                        <i class="bi bi-journal-x display-4 mb-2"></i>
+                        <p>No trip records found. Click <strong>+ New Trip</strong> above to start logging.</p>
+                    </div>
+                </div>
+            <% } %>
+
+            <% trips.forEach(trip => { %>
+                <div class="col-md-6 col-lg-4">
+                    <div class="card card-custom trip-card p-3 bg-white h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h5 class="fw-bold text-dark mb-0"><%= trip.title %></h5>
+                                <span class="badge badge-expense px-2 py-1">
+                                    $<%= trip.expenses ? trip.expenses.reduce((acc, curr) => acc + curr.amount, 0) : 0 %>
+                                </span>
+                            </div>
+                            <p class="text-muted small mb-3">
+                                <i class="bi bi-pin-map-fill me-1 text-danger"></i><%= trip.destination %>
+                            </p>
+                        </div>
+                        <div class="pt-3 border-top d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="bi bi-calendar3 me-1"></i><%= trip.startDate %> — <%= trip.endDate %>
+                            </small>
+                            <a href="#" class="btn btn-sm btn-outline-secondary rounded-pill">View</a>
+                        </div>
+                    </div>
+                </div>
+            <% }); %>
+        </div>
+
+    </div>
+
+    <!-- JS Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Leaflet Map Setup -->
+    <script>
+        const map = L.map('nepal-map').setView([28.3949, 84.1240], 7);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        const spots = [
+            { name: "Pokhara", lat: 28.2096, lng: 83.9856, desc: "City of Lakes & Paragliding" },
+            { name: "Chitwan National Park", lat: 27.5291, lng: 84.4533, desc: "Jungle Safari & Wildlife" },
+            { name: "Upper Mustang", lat: 28.9985, lng: 83.8473, desc: "The Last Forbidden Kingdom" },
+            { name: "Rara Lake", lat: 29.5303, lng: 82.0911, desc: "Queen of Lakes in Mugu" }
+        ];
+
+        spots.forEach(spot => {
+            L.marker([spot.lat, spot.lng]).addTo(map)
+                .bindPopup(`<b>${spot.name}</b><br><small>${spot.desc}</small>`);
+        });
+    </script>
+</body>
+</html>
